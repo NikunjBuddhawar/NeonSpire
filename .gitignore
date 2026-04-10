@@ -8,11 +8,7 @@ backend/dist/
 backend/*.egg-info/
 
 # Virtual Environment (Backend)
-backend/venv/
-backend/env/
-backend/ENV/
-backend/.venv/
-backend/.env/
+backend/neon/
 
 # Database files (Backend)
 backend/*.db

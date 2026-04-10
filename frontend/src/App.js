@@ -5,8 +5,12 @@ function App() {
   const [question, setQuestion] = useState("");
   const [conversation, setConversation] = useState([]);
   const [loading, setLoading] = useState(false);
+
   const [pdfFile, setPdfFile] = useState(null);
   const [docId, setDocId] = useState("");
+
+  const [isUploaded, setIsUploaded] = useState(false); // 🔥 NEW
+  const [uploading, setUploading] = useState(false);   // 🔥 OPTIONAL
 
   const pdfUrl = useMemo(() => {
     return pdfFile ? URL.createObjectURL(pdfFile) : null;
@@ -14,6 +18,7 @@ function App() {
 
   const fileInputRef = useRef(null);
 
+  // ------------------ ASK ------------------
   const handleAsk = async () => {
     if (!question.trim() || !docId) return;
 
@@ -53,8 +58,30 @@ function App() {
     }
   };
 
+  // ------------------ UPLOAD / REMOVE ------------------
   const handlePdfUpload = async () => {
-    if (!pdfFile) return;
+    // ❌ No file selected
+    if (!pdfFile && !isUploaded) {
+      alert("Please select a file first");
+      return;
+    }
+
+    // 🔁 REMOVE FILE
+    if (isUploaded) {
+      setPdfFile(null);
+      setDocId("");
+      setIsUploaded(false);
+      setConversation([]);
+
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+
+      return;
+    }
+
+    // 🚀 UPLOAD FILE
+    setUploading(true);
 
     const formData = new FormData();
     formData.append("file", pdfFile);
@@ -66,17 +93,24 @@ function App() {
       });
 
       const data = await res.json();
-      if (data.doc_id) setDocId(data.doc_id);
-      alert(data.message || data.error);
+
+      if (data.doc_id) {
+        setDocId(data.doc_id);
+        setIsUploaded(true);
+      }
     } catch (err) {
       alert("Upload failed: " + err.message);
+    } finally {
+      setUploading(false);
     }
   };
 
   return (
     <div className="app-container">
+      {/* ------------------ NAVBAR ------------------ */}
       <div className="navbar">
         <div className="logo">NEON SPIRE</div>
+
         <div className="upload-box">
           <label className="custom-upload">
             <input
@@ -87,11 +121,20 @@ function App() {
             />
             <span>{pdfFile ? pdfFile.name : "Upload a file"}</span>
           </label>
-          <button onClick={handlePdfUpload}>Upload PDF</button>
+
+          <button onClick={handlePdfUpload} disabled={uploading}>
+            {uploading
+              ? "Uploading..."
+              : isUploaded
+              ? "Remove File"
+              : "Upload PDF"}
+          </button>
         </div>
       </div>
 
+      {/* ------------------ MAIN ------------------ */}
       <div className="main-layout">
+        {/* CHAT */}
         <div className="chat-pane">
           <div className="chat-area">
             {!pdfFile && (
@@ -99,6 +142,7 @@ function App() {
                 Upload a PDF to simplify, summarize, and chat with your document.
               </div>
             )}
+
             {conversation.map((entry, index) => (
               <div key={index} className="chat-entry">
                 <div className="question-bubble">Q: {entry.question}</div>
@@ -107,7 +151,7 @@ function App() {
             ))}
           </div>
 
-          {/* 🔥 Updated input area (no page number) */}
+          {/* INPUT */}
           <div className="input-area">
             <input
               type="text"
@@ -116,12 +160,14 @@ function App() {
               onChange={(e) => setQuestion(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleAsk()}
             />
+
             <button onClick={handleAsk} disabled={loading || !docId}>
               {loading ? "..." : "Send"}
             </button>
           </div>
         </div>
 
+        {/* PDF VIEWER */}
         <div className="pdf-pane">
           {pdfFile ? (
             <iframe src={pdfUrl} title="PDF Viewer" className="pdf-viewer" />
